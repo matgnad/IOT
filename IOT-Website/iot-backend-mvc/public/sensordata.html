@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <title>IoT Dashboard - Device Monitoring & Control</title>
+</head>
+
+<body>
+    <!-- SideBar -->
+    <div class="sidebar" id="sidebar">
+        <div class="logo">IOT Dashboard</div>
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link" href="/">
+                    <span class="nav-icon"><i class="ri-home-7-line"></i></span>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <!-- <li class="nav-item">
+                <a class="nav-link" href="/dashboard">
+                    <span class="nav-icon"><i class="ri-home-7-line"></i></span>
+                    <span>Dashboard2</span>
+                </a>
+            </li> -->
+            <li class="nav-item">
+                <a class="nav-link active" href="/sensors">
+                    <span class="nav-icon"><i class="ri-sensor-line"></i></span>
+                    <span>Sensor Data</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/devices">
+                    <span class="nav-icon"><i class="ri-lightbulb-line"></i></span>
+                    <span>Devices</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- TopBar -->
+        <div class="header">
+            <h1 class="page-title" id="pageTitle">Sensors Data</h1>
+            <div class="profile-section" onclick="openProfileModal()">
+                <span class="profile-name">Team 13</span>
+            </div>
+        </div>
+
+        <!-- Sensor Data Page -->
+        <div id="sensor" class="page active">
+            <!-- Stats Cards -->
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="sensor-card">
+                        <div class="sensor-info">
+                            <h3>Temperature</h3>
+                            <div class="sensor-value" id="temp">25.5°C</div>
+                        </div>
+                        <div class="sensor-icon temp-icon"><i class="bi bi-thermometer icon-bg"></i></div>
+                    </div>
+                    <div class="data-stat">
+                        <div class="data">
+                            <span>Highest</span>
+                            <span class="data-value" id="temp-high">25.5°C</span>
+                        </div>
+                        <div class="data">
+                            <span>Lowest</span>
+                            <span class="data-value" id="temp-low">25.5°C</span>
+                        </div>
+                        <div class="data">
+                            <span>Average</span>
+                            <span class="data-value" id="temp-avg">25.5°C</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="sensor-card">
+                        <div class="sensor-info">
+                            <h3>Humidity</h3>
+                            <div class="sensor-value" id="humid">65%</div>
+                        </div>
+                        <div class="sensor-icon humid-icon"><i class="bi bi-droplet humid-icon"></i></div>
+                    </div>
+                    <div class="data-stat">
+                        <div class="data">
+                            <span>Highest</span>
+                            <span class="data-value" id="humid-high">65%</span>
+                        </div>
+                        <div class="data">
+                            <span>Lowest</span>
+                            <span class="data-value" id="humid-low">65%</span>
+                        </div>
+                        <div class="data">
+                            <span>Average</span>
+                            <span class="data-value" id="humid-avg">65%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="sensor-card">
+                        <div class="sensor-info">
+                            <h3>Light Level</h3>
+                            <div class="sensor-value" id="light">750 lux</div>
+                        </div>
+                        <div class="sensor-icon light-icon"><i class="bi bi-brightness-high-fill light-icon"></i></div>
+                    </div>
+                    <div class="data-stat">
+                        <div class="data">
+                            <span>Highest</span>
+                            <span class="data-value" id="light-high">750 lux</span>
+                        </div>
+                        <div class="data">
+                            <span>Lowest</span>
+                            <span class="data-value" id="light-low">750 lux</span>
+                        </div>
+                        <div class="data">
+                            <span>Average</span>
+                            <span class="data-value" id="light-avg">750 lux</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search & Select -->
+            <div class="search-selectbar">
+                <div class="search">
+                    <div class="search-bar">
+                        <input type="text" id="searchInput" placeholder="Search...">
+                        <i class="bi bi-search search-icon" id="searchBtn"></i>
+                    </div>
+                    <div class="select-bar">
+                        <select id="dataTypeSelect">
+                            <option value="all">All</option>
+                            <option value="time">Time</option>
+                            <option value="temperature">Temperature</option>
+                            <option value="humidity">Humidity</option>
+                            <option value="light">Light Level</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <!-- <div class="refresh-button">
+                        <button class="btn" onclick="location.reload()" aria-label="Làm mới trang"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+                    </div> -->
+                    <div class="page-size">
+                        <label for="pageSizeSelect">Rows per page:</label>
+                        <select id="pageSizeSelect" onchange="changePageSize()">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="data-table">
+                <div class="table-header">Sensor Data</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="inactive" data-sort="temp">Temperature (°C)</th>
+                            <th class="inactive" data-sort="humid">Humidity (%)</th>
+                            <th class="inactive" data-sort="light">Light Level (lux)</th>
+                            <th class="inactive" data-sort="measured_at">Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="DataTable">
+                        <!-- <tr>
+                            <td>23.5</td>
+                            <td>68</td>
+                            <td>450</td>
+                            <td>25/8/2025 08:00:00</td>
+                        </tr> -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="table-footer">
+                <div class="page-info" id="pageInfo">Display 1–10 / 0</div>
+
+                <div class="pager">
+                    <button class="btn" id="prevPage" aria-label="Trang trước">Prev</button>
+                    <div id="pagination" class="pagination"></div>
+                    <button class="btn" id="nextPage" aria-label="Trang sau">Next</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+ 
+    <!-- Icon -->
+    <script src="assets/js/sensoricon.js"></script>
+    <script src="assets/js/profilemodal.js"></script>
+    <script type="module">
+        import { renderPagination } from "./assets/js/pagination-utils.js";
+
+        // ========= State =========
+        let state = { 
+        search: "", 
+        field: "all", 
+        sort: "measured_at", 
+        order: "desc", 
+        page: 1, 
+        limit: 10 
+        };
+
+        // ========= Render table =========
+        function renderTable(rows = []) {
+        const tbody = document.getElementById("DataTable");
+        tbody.innerHTML = rows.map(r => `
+            <tr>
+            <td>${Number(r.temp).toFixed(1)}</td>
+            <td>${Number(r.humid).toFixed(1)}</td>
+            <td>${Number(r.light).toFixed(1)}</td>
+            <td class="copy-time" title="Click to copy">${r.measured_at}</td>
+            </tr>
+        `).join("");
+        }
+
+        // ============================
+        // Click COPY
+        // ============================
+        document.addEventListener("click", (e) => {
+        const cell = e.target.closest(".copy-time");
+        if (cell) {
+            const originalText = cell.textContent.trim();
+
+            navigator.clipboard.writeText(originalText).then(() => {
+            // Đổi text thành "Copied!"
+            cell.textContent = "Copied!";
+            cell.classList.add("copied");
+
+            // Sau 1 giây, đổi lại text ban đầu
+            setTimeout(() => {
+                cell.textContent = originalText;
+                cell.classList.remove("copied");
+            }, 1000);
+            });
+        }
+        });
+
+        // ========= Load API & render =========
+        async function loadTable() {
+        const state = {
+            search: "",
+            field: "all",
+            sort: "measured_at",
+            order: "desc",
+            page: 1,
+            limit: 10
+        };
+        try {
+            const url = `/api/sensors?search=${encodeURIComponent(search)}&field=${field}&sort=${sort}&order=${order}&page=${page}&limit=${limit}`;
+            const res = await fetch(url,{
+                headers:{
+                    "Authorization": 'Bearer 123456iottoken'
+                }
+            });
+            const json = await res.json();
+
+            renderTable(json.data);
+
+            renderPagination({
+            containerId: "pagination",
+            prevId: "prevPage",
+            nextId: "nextPage",
+            pageInfoId: "pageInfo",
+            pagination: json.pagination,
+            onPageChange: (newPage) => {
+                state.page = newPage;
+                loadTable();
+            }
+            });
+        } catch (err) {
+            console.error("Load sensors failed", err);
+        }
+        }
+
+        // ========= Events =========
+        const searchInput    = document.getElementById("searchInput");
+        const searchBtn      = document.getElementById("searchBtn");
+        const dataTypeSelect = document.getElementById("dataTypeSelect");
+        const pageSizeSelect = document.getElementById("pageSizeSelect");
+
+        // Search (Enter)
+        searchInput.addEventListener("keypress", e => {
+        if (e.key === "Enter") {
+            state.search = e.target.value;
+            state.page = 1;
+            loadTable();
+        }
+        });
+
+        // Search (Click)
+        searchBtn.addEventListener("click", () => {
+        state.search = searchInput.value;
+        state.page = 1;
+        loadTable();
+        });
+
+        // Filter field
+        dataTypeSelect.addEventListener("change", e => {
+        state.field = e.target.value;
+        state.page = 1;
+        loadTable();
+        });
+
+        // Page size
+        pageSizeSelect.addEventListener("change", e => {
+        state.limit = Number(e.target.value || 10);
+        state.page = 1;
+        loadTable();
+        });
+
+        function resetOthers(activeTh) {
+            document.querySelectorAll("thead th").forEach(col => {
+            if (col !== activeTh) {
+                col.classList.remove("asc", "desc");
+                col.classList.add("inactive");
+            }
+            });
+        }
+
+        // Sort khi click header
+        document.querySelectorAll("thead th").forEach(th => {
+        th.addEventListener("click", () => {
+            const field = th.dataset.sort || "measured_at";
+
+            document.querySelectorAll("thead th").forEach(col => {
+            if (col !== th) col.classList.remove("asc", "desc");
+            });
+
+            // toggle asc/desc
+            // if (th.classList.contains("asc")) {
+            // th.classList.remove("asc");
+            // th.classList.add("desc");
+            // state.order = "desc";
+            // } else {
+            // th.classList.remove("desc");
+            // th.classList.add("asc");
+            // state.order = "asc";
+            // }
+
+            if (th.classList.contains("asc")) {
+                resetOthers(th);
+                th.classList.remove("asc");
+                th.classList.add("desc");
+                state.order = "desc";
+            } else if (th.classList.contains("desc")) {
+                resetOthers(th);
+                th.classList.remove("desc");
+                th.classList.add("asc");
+                state.order = "asc";
+            } else {
+                resetOthers(th);
+                th.classList.remove("inactive");
+                th.classList.add("asc");
+                state.order = "asc";
+            }
+
+            state.sort = field;
+            state.page = 1;
+            loadTable();
+        });
+        });
+
+        // ========= Initial load =========
+        loadTable();
+    </script>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="assets/js/sensor-realtime.js"></script>
+
+
+</body>
+
+</html>

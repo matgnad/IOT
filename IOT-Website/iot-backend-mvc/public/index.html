@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IOT Dashboard - Device Monitoring & Control</title>
+
+    <link rel="stylesheet" href="assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- ================= SIDEBAR ================= -->
+    <button class="menu-toggle">☰</button>
+
+    <div class="sidebar">
+        <h2 class="logo">IOT Dashboard</h2>
+
+        <ul class="nav-menu">
+            <li class="nav-item">
+                <a class="nav-link active" onclick="openPage('dashboard')">
+                    <span class="nav-icon">📊</span> Dashboard
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="sensordata.html" class="nav-link">
+                    <span class="nav-icon">📈</span> Sensor Data
+                </a>
+            </li>
+
+            <li class="nav-item">
+                <a href="devices.html" class="nav-link">
+                    <span class="nav-icon">💡</span> Devices
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- ================= MAIN CONTENT ================= -->
+    <div class="main-content">
+
+        <!-- HEADER -->
+        <div class="header">
+            <h1 class="page-title">Dashboard</h1>
+
+            <div class="profile-section" onclick="openProfile()">
+                <div class="profile-avatar">
+                    <img src="assets/icons/user.png" alt="">
+                </div>
+                <span class="profile-name">User</span>
+            </div>
+        </div>
+
+        <!-- ================= DASHBOARD PAGE ================= -->
+        <div id="dashboard" class="page active">
+
+            <!-- CARDS -->
+            <div class="dashboard-grid">
+
+                <!-- Temperature card -->
+                <div class="card sensor-card">
+                    <div class="sensor-info">
+                        <h3>Temperature</h3>
+                        <div class="sensor-value" id="tempValue">-- °C</div>
+                    </div>
+                    <div class="sensor-icon">
+                        🌡️
+                    </div>
+                </div>
+
+                <!-- Humidity card -->
+                <div class="card sensor-card">
+                    <div class="sensor-info">
+                        <h3>Humidity</h3>
+                        <div class="sensor-value" id="humidValue">-- %</div>
+                    </div>
+                    <div class="sensor-icon">
+                        💧
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CHART -->
+            <div class="chart-container">
+                <h3 class="chart-title">Sensor Readings Over Time</h3>
+                <canvas id="sensorChart"></canvas>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ===================== JS ===================== -->
+    <script>
+        // MENU toggle (mobile)
+        document.querySelector('.menu-toggle').onclick = () =>
+            document.querySelector('.sidebar').classList.toggle('show');
+
+        // PAGE switch
+        function openPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+
+            document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // ---------------- SENSOR DATA ----------------
+        let chart;
+        let labels = [];
+        let tempData = [];
+        let humidData = [];
+
+        function updateCards(data) {
+            if (!data) return;
+            document.getElementById("tempValue").textContent =
+                data.temperature.toFixed(1) + " °C";
+            document.getElementById("humidValue").textContent =
+                data.humidity.toFixed(1) + " %";
+        }
+
+        function addPoint(time, t, h) {
+            labels.push(time);
+            tempData.push(t);
+            humidData.push(h);
+            if (chart) chart.update();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById("sensorChart");
+
+            chart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "Temperature (°C)",
+                            data: tempData,
+                            borderColor: "#ff4d4d",
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3
+                        },
+                        {
+                            label: "Humidity (%)",
+                            data: humidData,
+                            borderColor: "#3399ff",
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        async function bootstrap() {
+            const token = localStorage.getItem("token");
+
+            // --- Latest ---
+            const latest = await fetch("/sensors/latest", {
+                headers: { Authorization: "Bearer " + token }
+            }).then(r => r.json());
+
+            if (latest.success && latest.data[0]) {
+                updateCards(latest.data[0]);
+            }
+
+            // --- History ---
+            const history = await fetch("/sensors?limit=200", {
+                headers: { Authorization: "Bearer " + token }
+            }).then(r => r.json());
+
+            initChart();
+
+            history.data.forEach(row => {
+                addPoint(
+                    new Date(row.measured_at).toLocaleTimeString(),
+                    row.temperature,
+                    row.humidity
+                );
+            });
+        }
+
+        bootstrap();
+    </script>
+
+</body>
+
+</html>

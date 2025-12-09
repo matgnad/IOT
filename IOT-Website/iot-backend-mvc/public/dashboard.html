@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - IoT Monitoring</title>
+
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>IoT Sensor Dashboard</h2>
+
+        <!-- ====== SENSOR CARDS (Chỉ còn Temp + Humid) ====== -->
+        <div class="cards">
+
+            <div class="card">
+                <h3>Temperature</h3>
+                <div id="tempCard">-- °C</div>
+            </div>
+
+            <div class="card">
+                <h3>Humidity</h3>
+                <div id="humidCard">-- %</div>
+            </div>
+
+        </div>
+
+        <canvas id="sensorChart"></canvas>
+    </div>
+
+    <script>
+        let chart;
+        let labels = [];
+        let tempData = [];
+        let humidData = [];
+
+        // ===========================================
+        // UPDATE CARDS
+        // ===========================================
+        function updateCards(row) {
+            document.getElementById("tempCard").textContent =
+                row.temperature.toFixed(1) + " °C";
+
+            document.getElementById("humidCard").textContent =
+                row.humidity.toFixed(1) + " %";
+        }
+
+        // ===========================================
+        // ADD DATA TO CHART
+        // ===========================================
+        function addPoint(time, t, h) {
+            labels.push(time);
+            tempData.push(t);
+            humidData.push(h);
+
+            if (chart) chart.update();
+        }
+
+        // ===========================================
+        // INIT CHART (2 ĐƯỜNG)
+        // ===========================================
+        function initChart() {
+            const ctx = document.getElementById("sensorChart");
+
+            chart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "Temperature (°C)",
+                            data: tempData,
+                            borderColor: "red",
+                            fill: false
+                        },
+                        {
+                            label: "Humidity (%)",
+                            data: humidData,
+                            borderColor: "blue",
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // ===========================================
+        // INITIAL LOAD
+        // ===========================================
+        async function bootstrap() {
+            const token = localStorage.getItem("token");
+
+            // Latest
+            const latest = await fetch("/api/sensors/latest", {
+                headers: { Authorization: "Bearer " + token }
+            }).then(res => res.json());
+
+            if (latest.success && latest.data[0])
+                updateCards(latest.data[0]);
+
+            // History for chart
+            const history = await fetch("/sensors?limit=200", {
+                headers: { Authorization: "Bearer " + token }
+            }).then(res => res.json());
+
+            initChart();
+
+            history.data.forEach(r => {
+                addPoint(
+                    r.measured_at,
+                    r.temperature,
+                    r.humidity
+                );
+            });
+        }
+
+        bootstrap();
+    </script>
+</body>
+</html>

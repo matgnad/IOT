@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Devices</title>
+</head>
+
+<body>
+
+<h2>Devices</h2>
+
+<div id="devices"></div>
+
+<script>
+    async function loadDevices() {
+        const token = localStorage.getItem("token");
+
+        const res = await fetch("/devices", {
+            headers: { Authorization: "Bearer " + token }
+        });
+
+        const result = await res.json();
+        const div = document.getElementById("devices");
+        div.innerHTML = "";
+
+        result.data.forEach(d => {
+            div.innerHTML += `
+                <div>
+                    <b>${d.name}</b> — ${d.status}
+                </div>
+            `;
+        });
+    }
+
+    loadDevices();
+</script>
+
+</body>
+</html>
