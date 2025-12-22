@@ -4,11 +4,19 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Socket.IO will be injected after server initialization
+let io = null;
+
+export function setSocketIO(socketIO) {
+  io = socketIO;
+}
+
 const client = mqtt.connect(process.env.MQTT_URL);
 
 client.on('connect', () => {
   console.log('[MQTT] Connected');
-  client.subscribe('iot/sensor');
+  client.subscribe('esp8266/sensors');
+  console.log('[MQTT] Subscribed to: esp8266/sensors');
 });
 
 client.on('message', async (topic, message) => {
@@ -23,12 +31,22 @@ client.on('message', async (topic, message) => {
       return;
     }
 
-    await SensorData.create({
+    const sensorRecord = await SensorData.create({
       temperature,
       humidity
     });
 
     console.log(`[DB] Saved: T=${temperature} | H=${humidity}`);
+
+    // Emit Socket.IO event for real-time updates
+    if (io) {
+      io.emit('sensor:update', {
+        temperature,
+        humidity,
+        measured_at: sensorRecord.measured_at
+      });
+      console.log(`[Socket.IO] Emitted sensor:update`);
+    }
 
   } catch (e) {
     console.error('[MQTT] JSON error:', e.message);

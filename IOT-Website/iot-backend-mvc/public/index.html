@@ -42,7 +42,7 @@
     <!-- ================= MAIN CONTENT ================= -->
     <div class="main-content">
 
-        <!-- HEADER -->
+        <!-- HEADER
         <div class="header">
             <h1 class="page-title">Dashboard</h1>
 
@@ -52,7 +52,7 @@
                 </div>
                 <span class="profile-name">User</span>
             </div>
-        </div>
+        </div> -->
 
         <!-- ================= DASHBOARD PAGE ================= -->
         <div id="dashboard" class="page active">
@@ -117,11 +117,19 @@
 
         function updateCards(data) {
             if (!data) return;
-            document.getElementById("tempValue").textContent =
-                data.temperature.toFixed(1) + " °C";
-            document.getElementById("humidValue").textContent =
-                data.humidity.toFixed(1) + " %";
+
+            if (data.temperature != null) {
+                document.getElementById("tempValue").innerText =
+                    data.temperature.toFixed(1) + " °C";
+            }
+
+            if (data.humidity != null) {
+                document.getElementById("humidValue").innerText =
+                    data.humidity.toFixed(0) + " %";
+            }
         }
+
+
 
         function addPoint(time, t, h) {
             labels.push(time);
@@ -163,34 +171,73 @@
             });
         }
 
+
+
         async function bootstrap() {
-            const token = localStorage.getItem("token");
+            try {
+                // ===== Ensure token =====
+                let token = localStorage.getItem("token");
 
-            // --- Latest ---
-            const latest = await fetch("/sensors/latest", {
-                headers: { Authorization: "Bearer " + token }
-            }).then(r => r.json());
+                if (!token) {
+                    token = "123456iottoken";          // ⚠️ PHẢI TRÙNG .env
+                    localStorage.setItem("token", token);
+                }
 
-            if (latest.success && latest.data[0]) {
-                updateCards(latest.data[0]);
+                // ===== Load latest sensor =====
+                const latestRes = await fetch("/api/sensors/latest", {
+                    headers: {
+                        Authorization: "Bearer " + token
+                    }
+                });
+                
+                if (!latestRes.ok) {
+                    console.error("Latest API Error:", latestRes.status, latestRes.statusText);
+                    throw new Error(`API Error: ${latestRes.status}`);
+                }
+                
+                const latest = await latestRes.json();
+                console.log("Latest API Response:", latest);
+
+                if (latest.success && latest.data) {
+                    updateCards(latest.data);
+                } else {
+                    console.warn("No latest sensor data available:", latest);
+                }
+
+                // ===== Load history =====
+                const historyRes = await fetch("/api/sensors?limit=200", {
+                    headers: {
+                        Authorization: "Bearer " + token
+                    }
+                });
+                
+                if (!historyRes.ok) {
+                    console.error("History API Error:", historyRes.status, historyRes.statusText);
+                    throw new Error(`API Error: ${historyRes.status}`);
+                }
+                
+                const history = await historyRes.json();
+                console.log("History API Response:", history);
+
+                initChart();
+
+                if (history.success && history.data && history.data.length) {
+                    history.data.forEach(row => {
+                        addPoint(
+                            new Date(row.measured_at).toLocaleTimeString(),
+                            row.temperature,
+                            row.humidity
+                        );
+                    });
+                } else {
+                    console.warn("No history data available:", history);
+                }
+            } catch (error) {
+                console.error("Error loading sensor data:", error);
             }
-
-            // --- History ---
-            const history = await fetch("/sensors?limit=200", {
-                headers: { Authorization: "Bearer " + token }
-            }).then(r => r.json());
-
-            initChart();
-
-            history.data.forEach(row => {
-                addPoint(
-                    new Date(row.measured_at).toLocaleTimeString(),
-                    row.temperature,
-                    row.humidity
-                );
-            });
         }
 
+        // Initialize on page load
         bootstrap();
     </script>
 

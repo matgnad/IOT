@@ -102,61 +102,18 @@
                         </div>
                     </div>
                 </div>
-                <div class="card">
-                    <div class="sensor-card">
-                        <div class="sensor-info">
-                            <h3>Light Level</h3>
-                            <div class="sensor-value" id="light">750 lux</div>
-                        </div>
-                        <div class="sensor-icon light-icon"><i class="bi bi-brightness-high-fill light-icon"></i></div>
-                    </div>
-                    <div class="data-stat">
-                        <div class="data">
-                            <span>Highest</span>
-                            <span class="data-value" id="light-high">750 lux</span>
-                        </div>
-                        <div class="data">
-                            <span>Lowest</span>
-                            <span class="data-value" id="light-low">750 lux</span>
-                        </div>
-                        <div class="data">
-                            <span>Average</span>
-                            <span class="data-value" id="light-avg">750 lux</span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
-            <!-- Search & Select -->
-            <div class="search-selectbar">
-                <div class="search">
-                    <div class="search-bar">
-                        <input type="text" id="searchInput" placeholder="Search...">
-                        <i class="bi bi-search search-icon" id="searchBtn"></i>
-                    </div>
-                    <div class="select-bar">
-                        <select id="dataTypeSelect">
-                            <option value="all">All</option>
-                            <option value="time">Time</option>
-                            <option value="temperature">Temperature</option>
-                            <option value="humidity">Humidity</option>
-                            <option value="light">Light Level</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <!-- <div class="refresh-button">
-                        <button class="btn" onclick="location.reload()" aria-label="Làm mới trang"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-                    </div> -->
-                    <div class="page-size">
-                        <label for="pageSizeSelect">Rows per page:</label>
-                        <select id="pageSizeSelect" onchange="changePageSize()">
-                            <option value="5">5</option>
-                            <option value="10" selected>10</option>
-                            <option value="20">20</option>
-                            <option value="50">50</option>
-                        </select>
-                    </div>
+            <!-- Page Size Control -->
+            <div class="page-controls">
+                <div class="page-size">
+                    <label for="pageSizeSelect">Rows per page:</label>
+                    <select id="pageSizeSelect">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
                 </div>
             </div>
 
@@ -168,7 +125,6 @@
                         <tr>
                             <th class="inactive" data-sort="temp">Temperature (°C)</th>
                             <th class="inactive" data-sort="humid">Humidity (%)</th>
-                            <th class="inactive" data-sort="light">Light Level (lux)</th>
                             <th class="inactive" data-sort="measured_at">Time</th>
                         </tr>
                     </thead>
@@ -203,8 +159,6 @@
 
         // ========= State =========
         let state = { 
-        search: "", 
-        field: "all", 
         sort: "measured_at", 
         order: "desc", 
         page: 1, 
@@ -214,14 +168,93 @@
         // ========= Render table =========
         function renderTable(rows = []) {
         const tbody = document.getElementById("DataTable");
+        if (!rows || rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No data available</td></tr>';
+            return;
+        }
         tbody.innerHTML = rows.map(r => `
             <tr>
-            <td>${Number(r.temp).toFixed(1)}</td>
-            <td>${Number(r.humid).toFixed(1)}</td>
-            <td>${Number(r.light).toFixed(1)}</td>
-            <td class="copy-time" title="Click to copy">${r.measured_at}</td>
+            <td>${Number(r.temperature || 0).toFixed(1)}</td>
+            <td>${Number(r.humidity || 0).toFixed(1)}</td>
+            <td class="copy-time" title="Click to copy">${r.measured_at || ''}</td>
             </tr>
         `).join("");
+        }
+
+        // ========= Calculate and update summary stats =========
+        function updateSummaryStats(rows = []) {
+            if (!rows || rows.length === 0) {
+                // Handle empty data - set all to default values
+                document.getElementById("temp").innerText = "-- °C";
+                document.getElementById("temp-high").innerText = "-- °C";
+                document.getElementById("temp-low").innerText = "-- °C";
+                document.getElementById("temp-avg").innerText = "-- °C";
+                
+                document.getElementById("humid").innerText = "-- %";
+                document.getElementById("humid-high").innerText = "-- %";
+                document.getElementById("humid-low").innerText = "-- %";
+                document.getElementById("humid-avg").innerText = "-- %";
+                return;
+            }
+
+            // Extract temperature and humidity values
+            const temperatures = rows
+                .map(r => Number(r.temperature))
+                .filter(t => !isNaN(t) && t != null);
+            
+            const humidities = rows
+                .map(r => Number(r.humidity))
+                .filter(h => !isNaN(h) && h != null);
+
+            // Calculate latest value (first row if DESC, last row if ASC)
+            // Since order is usually DESC, latest is first row
+            const latestRow = rows[0];
+            const latestTemp = latestRow && latestRow.temperature != null 
+                ? Number(latestRow.temperature) 
+                : null;
+            const latestHumid = latestRow && latestRow.humidity != null 
+                ? Number(latestRow.humidity) 
+                : null;
+
+            // Calculate Temperature stats
+            if (temperatures.length > 0) {
+                const tempMax = Math.max(...temperatures);
+                const tempMin = Math.min(...temperatures);
+                const tempAvg = temperatures.reduce((sum, t) => sum + t, 0) / temperatures.length;
+
+                // Update Temperature DOM elements
+                if (latestTemp != null && !isNaN(latestTemp)) {
+                    document.getElementById("temp").innerText = `${latestTemp.toFixed(1)}°C`;
+                }
+                document.getElementById("temp-high").innerText = `${tempMax.toFixed(1)}°C`;
+                document.getElementById("temp-low").innerText = `${tempMin.toFixed(1)}°C`;
+                document.getElementById("temp-avg").innerText = `${tempAvg.toFixed(1)}°C`;
+            } else {
+                document.getElementById("temp").innerText = "-- °C";
+                document.getElementById("temp-high").innerText = "-- °C";
+                document.getElementById("temp-low").innerText = "-- °C";
+                document.getElementById("temp-avg").innerText = "-- °C";
+            }
+
+            // Calculate Humidity stats
+            if (humidities.length > 0) {
+                const humidMax = Math.max(...humidities);
+                const humidMin = Math.min(...humidities);
+                const humidAvg = humidities.reduce((sum, h) => sum + h, 0) / humidities.length;
+
+                // Update Humidity DOM elements
+                if (latestHumid != null && !isNaN(latestHumid)) {
+                    document.getElementById("humid").innerText = `${latestHumid.toFixed(1)}%`;
+                }
+                document.getElementById("humid-high").innerText = `${humidMax.toFixed(1)}%`;
+                document.getElementById("humid-low").innerText = `${humidMin.toFixed(1)}%`;
+                document.getElementById("humid-avg").innerText = `${humidAvg.toFixed(1)}%`;
+            } else {
+                document.getElementById("humid").innerText = "-- %";
+                document.getElementById("humid-high").innerText = "-- %";
+                document.getElementById("humid-low").innerText = "-- %";
+                document.getElementById("humid-avg").innerText = "-- %";
+            }
         }
 
         // ============================
@@ -248,24 +281,26 @@
 
         // ========= Load API & render =========
         async function loadTable() {
-        const state = {
-            search: "",
-            field: "all",
-            sort: "measured_at",
-            order: "desc",
-            page: 1,
-            limit: 10
-        };
         try {
-            const url = `/api/sensors?search=${encodeURIComponent(search)}&field=${field}&sort=${sort}&order=${order}&page=${page}&limit=${limit}`;
-            const res = await fetch(url,{
-                headers:{
-                    "Authorization": 'Bearer 123456iottoken'
-                }
-            });
+            const url = `/api/sensors?page=${state.page}&limit=${state.limit}&order=${state.order}`;
+            const res = await fetch(url);
+            
+            if (!res.ok) {
+                console.error("API Error:", res.status, res.statusText);
+                return;
+            }
+            
             const json = await res.json();
+            console.log("API Response:", json);
 
-            renderTable(json.data);
+            if (json.success && json.data) {
+                renderTable(json.data);
+                updateSummaryStats(json.data);
+            } else {
+                console.warn("No data in response:", json);
+                renderTable([]);
+                updateSummaryStats([]);
+            }
 
             renderPagination({
             containerId: "pagination",
@@ -284,33 +319,7 @@
         }
 
         // ========= Events =========
-        const searchInput    = document.getElementById("searchInput");
-        const searchBtn      = document.getElementById("searchBtn");
-        const dataTypeSelect = document.getElementById("dataTypeSelect");
         const pageSizeSelect = document.getElementById("pageSizeSelect");
-
-        // Search (Enter)
-        searchInput.addEventListener("keypress", e => {
-        if (e.key === "Enter") {
-            state.search = e.target.value;
-            state.page = 1;
-            loadTable();
-        }
-        });
-
-        // Search (Click)
-        searchBtn.addEventListener("click", () => {
-        state.search = searchInput.value;
-        state.page = 1;
-        loadTable();
-        });
-
-        // Filter field
-        dataTypeSelect.addEventListener("change", e => {
-        state.field = e.target.value;
-        state.page = 1;
-        loadTable();
-        });
 
         // Page size
         pageSizeSelect.addEventListener("change", e => {
@@ -374,10 +383,6 @@
         // ========= Initial load =========
         loadTable();
     </script>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="assets/js/sensor-realtime.js"></script>
-
 
 </body>
 

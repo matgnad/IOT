@@ -1,96 +1,98 @@
-import SensorData from "../models/SensorData.js";
-import { Op } from "sequelize";
+import SensorData from '../models/SensorData.js';
 
-class SensorsController {
-    // ================================
-    // 1) Lấy 20 giá trị mới nhất
-    // ================================
-    async latest(req, res) {
-        try {
-            const rows = await SensorData.findAll({
-                order: [["id", "DESC"]],
-                limit: 20
-            });
+const SensorsController = {
 
-            return res.json({
-                success: true,
-                data: rows
-            });
-        } catch (err) {
-            console.error("Error in latest:", err);
-            return res.status(500).json({ success: false, message: "Server error" });
+  // GET /api/sensors/latest
+  async latest(req, res) {
+    try {
+      const latest = await SensorData.findOne({
+        order: [['measured_at', 'DESC']]
+      });
+
+      if (!latest) {
+        return res.json({
+          success: false,
+          message: 'No sensor data available',
+          data: null
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          temperature: latest.temperature,
+          humidity: latest.humidity,
+          measured_at: latest.measured_at
         }
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ 
+        success: false,
+        message: 'Server error' 
+      });
     }
+  },
 
-    // ================================
-    // 2) Lấy dữ liệu có phân trang + tìm kiếm
-    // ================================
-    async list(req, res) {
-        try {
-            const page = Number(req.query.page || 1);
-            const limit = Number(req.query.limit || 10);
-            const offset = (page - 1) * limit;
+  // GET /api/sensors
+  async list(req, res) {
+    try {
+      const {
+        page = 1,
+        limit = 10,
+        order = 'DESC'
+      } = req.query;
 
-            const search = req.query.search || "";
-            const field = req.query.field || "temperature";
-            const order = req.query.order || "DESC";
+      const offset = (page - 1) * limit;
 
-            let where = {};
+      const { rows, count } = await SensorData.findAndCountAll({
+        order: [['measured_at', order]],
+        limit: Number(limit),
+        offset: Number(offset),
+        raw: true  // Return plain objects instead of Sequelize instances
+      });
 
-            if (search.trim() !== "") {
-                if (["temperature", "humidity"].includes(field)) {
-                    where[field] = {
-                        [Op.like]: `%${search}%`
-                    };
-                }
-            }
-
-            const { count, rows } = await SensorData.findAndCountAll({
-                where,
-                limit,
-                offset,
-                order: [["id", order]]
-            });
-
-            return res.json({
-                success: true,
-                page,
-                limit,
-                total: count,
-                data: rows
-            });
-
-        } catch (err) {
-            console.error("Error in list:", err);
-            return res.status(500).json({ success: false, message: "Server error" });
+      res.json({
+        success: true,
+        data: rows,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total: count,
+          totalPages: Math.ceil(count / limit)
         }
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: 'Server error' });
     }
+  },
 
-    // ================================
-    // 3) Tính thống kê (dashboard)
-    // ================================
-    async stats(req, res) {
-        try {
-            const rows = await SensorData.findAll({
-                order: [["id", "DESC"]],
-                limit: 50
-            });
+  // GET /api/sensors/today
+  async today(req, res) {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-            const temps = rows.map(r => Number(r.temperature));
-            const humids = rows.map(r => Number(r.humidity));
+      const data = await SensorData.findAll({
+        where: {
+          measured_at: {
+            [SensorData.sequelize.Op.gte]: today
+          }
+        },
+        order: [['measured_at', 'ASC']],
+        raw: true  // Return plain objects instead of Sequelize instances
+      });
 
-            return res.json({
-                success: true,
-                temperature: temps,
-                humidity: humids,
-                labels: rows.map(r => r.measured_at)
-            });
-
-        } catch (err) {
-            console.error("Error in stats:", err);
-            return res.status(500).json({ success: false, message: "Server error" });
-        }
+      res.json({
+        success: true,
+        data: data
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: 'Server error' });
     }
-}
+  }
+};
 
-export default new SensorsController();
+export default SensorsController;

@@ -16,7 +16,6 @@ function numberOrNull(v) {
 function unitFor(type) {
   if (type === "temp") return "°C";
   if (type === "humid") return "%";
-  if (type === "light") return " lux";
   return "";
 }
 
@@ -33,8 +32,7 @@ function isTodayLocal(dateLike) {
 // ========= State =========
 const currentStats = {
   temp:  { hi: null, lo: null, sum: 0, count: 0 },
-  humid: { hi: null, lo: null, sum: 0, count: 0 },
-  light: { hi: null, lo: null, sum: 0, count: 0 }
+  humid: { hi: null, lo: null, sum: 0, count: 0 }
 };
 
 // ========= Init from API =========
@@ -50,7 +48,7 @@ async function initTodayStats() {
 
     const rowCount = Array.isArray(data.rows) ? data.rows.length : 0;
 
-    ["temp", "humid", "light"].forEach(type => {
+    ["temp", "humid"].forEach(type => {
       const s = data.stats[type];
       if (!s) return;
 
@@ -75,15 +73,12 @@ async function initTodayStats() {
 function updateRealtimeStats(row) {
   const t = numberOrNull(row.temp);
   const h = numberOrNull(row.humid);
-  const l = numberOrNull(row.light);
 
   if (t != null) document.getElementById("temp").innerText  = `${t.toFixed(1)}°C`;
   if (h != null) document.getElementById("humid").innerText = `${h.toFixed(1)}%`;
-  if (l != null) document.getElementById("light").innerText = `${l.toFixed(1)} lux`;
 
   updateOneStat("temp", t);
   updateOneStat("humid", h);
-  updateOneStat("light", l);
 }
 
 function updateOneStat(type, val) {

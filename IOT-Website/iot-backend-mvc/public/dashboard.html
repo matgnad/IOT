@@ -6,66 +6,155 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - IoT Monitoring</title>
 
-    <link rel="stylesheet" href="assets/css/dashboard.css">
+    <link rel="stylesheet" href="assets/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
 </head>
 
 <body>
 
-    <div class="container">
-        <h2>IoT Sensor Dashboard</h2>
+    <div class="main-content">
+        <div class="page active">
+            <h1 class="page-title" style="margin-bottom: 2rem;">IoT Sensor Dashboard</h1>
 
-        <!-- ====== SENSOR CARDS (Chỉ còn Temp + Humid) ====== -->
-        <div class="cards">
+            <!-- Sensor Cards -->
+            <div class="dashboard-grid">
+                <div class="card sensor-card">
+                    <div class="sensor-info">
+                        <h3>Temperature</h3>
+                        <div class="sensor-value" id="tempValue">-- °C</div>
+                    </div>
+                    <div class="sensor-icon">🌡️</div>
+                </div>
 
-            <div class="card">
-                <h3>Temperature</h3>
-                <div id="tempCard">-- °C</div>
+                <div class="card sensor-card">
+                    <div class="sensor-info">
+                        <h3>Humidity</h3>
+                        <div class="sensor-value" id="humidValue">-- %</div>
+                    </div>
+                    <div class="sensor-icon">💧</div>
+                </div>
             </div>
 
-            <div class="card">
-                <h3>Humidity</h3>
-                <div id="humidCard">-- %</div>
+            <!-- Chart -->
+            <div class="chart-container">
+                <h3 class="chart-title">Sensor Readings Over Time</h3>
+                <canvas id="sensorChart"></canvas>
             </div>
-
         </div>
-
-        <canvas id="sensorChart"></canvas>
     </div>
 
     <script>
+        // ========= State =========
         let chart;
         let labels = [];
         let tempData = [];
         let humidData = [];
+        const MAX_CHART_POINTS = 50; // Keep last 50 points for smooth scrolling
+        
+        // In-memory statistics
+        const stats = {
+            temp: {
+                current: null,
+                min: null,
+                max: null,
+                values: []
+            },
+            humid: {
+                current: null,
+                min: null,
+                max: null,
+                values: []
+            }
+        };
+        
+        // Socket.IO connection
+        const socket = io();
 
-        // ===========================================
-        // UPDATE CARDS
-        // ===========================================
-        function updateCards(row) {
-            document.getElementById("tempCard").textContent =
-                row.temperature.toFixed(1) + " °C";
+        // ========= Update Cards =========
+        function updateCards(data) {
+            if (!data) return;
 
-            document.getElementById("humidCard").textContent =
-                row.humidity.toFixed(1) + " %";
+            if (data.temperature != null) {
+                document.getElementById("tempValue").innerText =
+                    data.temperature.toFixed(1) + " °C";
+            }
+
+            if (data.humidity != null) {
+                document.getElementById("humidValue").innerText =
+                    data.humidity.toFixed(0) + " %";
+            }
         }
 
-        // ===========================================
-        // ADD DATA TO CHART
-        // ===========================================
-        function addPoint(time, t, h) {
+        // ========= Update Statistics =========
+        function updateStats(type, value) {
+            if (value == null || isNaN(value)) return;
+            
+            const stat = stats[type];
+            stat.current = value;
+            stat.values.push(value);
+            
+            // Calculate min/max
+            stat.min = Math.min(...stat.values);
+            stat.max = Math.max(...stat.values);
+        }
+        
+        // ========= Calculate Average =========
+        function calculateAverage(values) {
+            if (!values || values.length === 0) return 0;
+            const sum = values.reduce((a, b) => a + b, 0);
+            return sum / values.length;
+        }
+        
+        // ========= Add Point to Chart =========
+        function addPoint(time, t, h, skipAnimation = false) {
             labels.push(time);
             tempData.push(t);
             humidData.push(h);
-
-            if (chart) chart.update();
+            
+            // Keep only last N points for smooth scrolling
+            if (labels.length > MAX_CHART_POINTS) {
+                labels.shift();
+                tempData.shift();
+                humidData.shift();
+            }
+            
+            if (chart) {
+                // Recalculate ranges for dynamic scaling
+                const tempRange = calculateAxisRange(tempData, 1);
+                const humidRange = calculateAxisRange(humidData, 5);
+                
+                // Update chart scales
+                chart.options.scales.yTemp.min = tempRange.min;
+                chart.options.scales.yTemp.max = tempRange.max;
+                chart.options.scales.yHumid.min = humidRange.min;
+                chart.options.scales.yHumid.max = humidRange.max;
+                
+                // Disable animation for real-time updates
+                chart.update(skipAnimation ? 'none' : 'default');
+            }
         }
 
-        // ===========================================
-        // INIT CHART (2 ĐƯỜNG)
-        // ===========================================
+        // ========= Calculate Dynamic Min/Max =========
+        function calculateAxisRange(data, padding) {
+            if (!data || data.length === 0) {
+                return { min: 0, max: 100 };
+            }
+            const min = Math.min(...data);
+            const max = Math.max(...data);
+            return {
+                min: min - padding,
+                max: max + padding
+            };
+        }
+
+        // ========= Initialize Chart =========
         function initChart() {
             const ctx = document.getElementById("sensorChart");
+
+            // Calculate dynamic ranges for Temperature and Humidity
+            const tempRange = calculateAxisRange(tempData, 1);
+            const humidRange = calculateAxisRange(humidData, 5);
 
             chart = new Chart(ctx, {
                 type: "line",
@@ -75,55 +164,176 @@
                         {
                             label: "Temperature (°C)",
                             data: tempData,
-                            borderColor: "red",
-                            fill: false
+                            borderColor: "#ff4d4d",
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: "yTemp"
                         },
                         {
                             label: "Humidity (%)",
                             data: humidData,
-                            borderColor: "blue",
-                            fill: false
+                            borderColor: "#3399ff",
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: "yHumid"
                         }
                     ]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0 // Disable animation for real-time updates
+                    },
+                    interaction: {
+                        mode: "index",
+                        intersect: false
+                    },
+                    scales: {
+                        yTemp: {
+                            type: "linear",
+                            display: true,
+                            position: "left",
+                            title: {
+                                display: true,
+                                text: "Temperature (°C)",
+                                color: "#ff4d4d",
+                                font: {
+                                    weight: "bold"
+                                }
+                            },
+                            min: tempRange.min,
+                            max: tempRange.max,
+                            ticks: {
+                                color: "#ff4d4d"
+                            },
+                            grid: {
+                                drawOnChartArea: true
+                            }
+                        },
+                        yHumid: {
+                            type: "linear",
+                            display: true,
+                            position: "right",
+                            title: {
+                                display: true,
+                                text: "Humidity (%)",
+                                color: "#3399ff",
+                                font: {
+                                    weight: "bold"
+                                }
+                            },
+                            min: humidRange.min,
+                            max: humidRange.max,
+                            ticks: {
+                                color: "#3399ff"
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        },
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: "Time"
+                            }
+                        }
+                    }
                 }
             });
         }
 
-        // ===========================================
-        // INITIAL LOAD
-        // ===========================================
+        // ========= Load Data =========
         async function bootstrap() {
-            const token = localStorage.getItem("token");
+            try {
+                // Load latest sensor data
+                const latestRes = await fetch("/api/sensors/latest");
 
-            // Latest
-            const latest = await fetch("/api/sensors/latest", {
-                headers: { Authorization: "Bearer " + token }
-            }).then(res => res.json());
+                if (!latestRes.ok) {
+                    console.error("Latest API Error:", latestRes.status, latestRes.statusText);
+                    throw new Error(`API Error: ${latestRes.status}`);
+                }
 
-            if (latest.success && latest.data[0])
-                updateCards(latest.data[0]);
+                const latest = await latestRes.json();
+                console.log("Latest API Response:", latest);
 
-            // History for chart
-            const history = await fetch("/sensors?limit=200", {
-                headers: { Authorization: "Bearer " + token }
-            }).then(res => res.json());
+                if (latest.success && latest.data) {
+                    updateCards(latest.data);
+                } else {
+                    console.warn("No latest sensor data available:", latest);
+                }
 
-            initChart();
+                // Load history for chart
+                const historyRes = await fetch("/api/sensors?limit=200&order=DESC");
 
-            history.data.forEach(r => {
-                addPoint(
-                    r.measured_at,
-                    r.temperature,
-                    r.humidity
-                );
-            });
+                if (!historyRes.ok) {
+                    console.error("History API Error:", historyRes.status, historyRes.statusText);
+                    throw new Error(`API Error: ${historyRes.status}`);
+                }
+
+                const history = await historyRes.json();
+                console.log("History API Response:", history);
+
+                // Add history data first (reverse to show chronological order)
+                if (history.success && history.data && history.data.length) {
+                    // Reverse array to show oldest to newest
+                    const reversedData = [...history.data].reverse();
+                    reversedData.forEach(row => {
+                        labels.push(new Date(row.measured_at).toLocaleTimeString());
+                        tempData.push(row.temperature);
+                        humidData.push(row.humidity);
+                    });
+                } else {
+                    console.warn("No history data available:", history);
+                }
+
+                // Initialize chart after data is loaded (for dynamic range calculation)
+                initChart();
+                
+                // Initialize stats from loaded data
+                tempData.forEach(t => updateStats('temp', t));
+                humidData.forEach(h => updateStats('humid', h));
+            } catch (error) {
+                console.error("Error loading sensor data:", error);
+            }
         }
+        
+        // ========= Socket.IO Real-time Updates =========
+        socket.on('connect', () => {
+            console.log('[Socket.IO] Connected to server');
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('[Socket.IO] Disconnected from server');
+        });
+        
+        socket.on('sensor:update', (data) => {
+            // Update current values
+            if (data.temperature != null) {
+                updateStats('temp', data.temperature);
+                document.getElementById("tempValue").innerText = 
+                    data.temperature.toFixed(1) + " °C";
+            }
+            
+            if (data.humidity != null) {
+                updateStats('humid', data.humidity);
+                document.getElementById("humidValue").innerText = 
+                    data.humidity.toFixed(0) + " %";
+            }
+            
+            // Add point to chart (skip animation for real-time)
+            const timeLabel = new Date(data.measured_at).toLocaleTimeString();
+            addPoint(timeLabel, data.temperature, data.humidity, true);
+            
+            console.log('[Socket.IO] Received update:', data);
+        });
 
+        // Initialize on page load
         bootstrap();
     </script>
 </body>
+
 </html>

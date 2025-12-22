@@ -28,11 +28,9 @@ function getColorFromRange(val, min, max, colors) {
 function updateIcons() {
     const tempVal  = parseFloat(document.getElementById("temp").innerText);
     const humidVal = parseFloat(document.getElementById("humid").innerText);
-    const lightVal = parseFloat(document.getElementById("light").innerText);
 
     const tempIcon  = document.querySelector(".bi-thermometer");
     const humidIcon = document.querySelector(".bi-droplet");
-    const lightIcon = document.querySelector(".bi-brightness-high-fill");
 
     // Nhiệt độ: xanh → vàng → đỏ (giữ như cũ)
     const tempColor = getColorFromRange(tempVal, 0, 50, ["#0000ff", "#ffff00", "#ff0000"]);
@@ -42,12 +40,8 @@ function updateIcons() {
     const humidColor = getColorFromRange(humidVal, 0, 100, ["#8b4513", "#87ceeb", "#00008b"]);
     humidIcon.style.background = humidColor;
 
-    // Ánh sáng: xám → vàng nhạt → cam
-    const lightColor = getColorFromRange(lightVal, 0, 2000, ["#808080", "#ffff99", "#ff8c00"]);
-    lightIcon.style.background = lightColor;
-
     // áp dụng gradient text
-    [tempIcon, humidIcon, lightIcon].forEach(icon => {
+    [tempIcon, humidIcon].forEach(icon => {
         icon.style.webkitBackgroundClip = "text";
         icon.style.backgroundClip = "text";
         icon.style.color = "transparent";
@@ -55,7 +49,7 @@ function updateIcons() {
 }
 
 // Theo dõi thay đổi giá trị
-["temp", "humid", "light"].forEach(id => {
+["temp", "humid"].forEach(id => {
     const target = document.getElementById(id);
     const observer = new MutationObserver(updateIcons);
     observer.observe(target, { childList: true, characterData: true, subtree: true });
