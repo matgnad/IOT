@@ -1,4 +1,5 @@
 import SensorData from '../models/SensorData.js';
+import { Op } from 'sequelize';
 
 const SensorsController = {
 
@@ -20,16 +21,18 @@ const SensorsController = {
       return res.json({
         success: true,
         data: {
+          id: latest.id,
           temperature: latest.temperature,
           humidity: latest.humidity,
           measured_at: latest.measured_at
         }
       });
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ 
+      console.error('[SensorsController.latest] Error:', err);
+      return res.status(500).json({ 
         success: false,
-        message: 'Server error' 
+        message: 'Server error',
+        error: err.message
       });
     }
   },
@@ -52,7 +55,7 @@ const SensorsController = {
         raw: true  // Return plain objects instead of Sequelize instances
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: rows,
         pagination: {
@@ -63,8 +66,12 @@ const SensorsController = {
         }
       });
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Server error' });
+      console.error('[SensorsController.list] Error:', err);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Server error',
+        error: err.message
+      });
     }
   },
 
@@ -77,20 +84,24 @@ const SensorsController = {
       const data = await SensorData.findAll({
         where: {
           measured_at: {
-            [SensorData.sequelize.Op.gte]: today
+            [Op.gte]: today
           }
         },
         order: [['measured_at', 'ASC']],
         raw: true  // Return plain objects instead of Sequelize instances
       });
 
-      res.json({
+      return res.json({
         success: true,
         data: data
       });
     } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: 'Server error' });
+      console.error('[SensorsController.today] Error:', err);
+      return res.status(500).json({ 
+        success: false,
+        message: 'Server error',
+        error: err.message
+      });
     }
   }
 };

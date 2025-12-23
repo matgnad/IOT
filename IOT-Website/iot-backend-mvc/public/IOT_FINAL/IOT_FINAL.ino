@@ -176,24 +176,36 @@ void loop() {
     float t   = dht.readTemperature();
     float lux = lightMeter.readLightLevel();
 
-    if (isnan(h) || isnan(t) || isnan(lux)) {
-      Serial.println("Sensor read error");
+    // ✅ FIX: Check temp/humid separately - publish even if light sensor fails
+    if (isnan(h) || isnan(t)) {
+      Serial.println("❌ DHT11 sensor error - skipping this cycle");
       return;
     }
 
     StaticJsonDocument<128> doc;
     doc["temp"]  = t;
     doc["humid"] = h;
-    doc["light"] = lux;
-    // Nếu muốn gửi timestamp (millis):
-    // doc["ts_ms"] = (uint32_t)millis();
+    
+    // ✅ FIX: Only include light if valid (optional field)
+    if (!isnan(lux)) {
+      doc["light"] = lux;
+    } else {
+      Serial.println("⚠️ BH1750 light sensor error (ignored)");
+    }
 
     char payload[128];
     serializeJson(doc, payload);
 
-    // Sensors nên có retained để web/BE lấy được last known ngay khi subscribe
+    // ✅ FIX: Add more diagnostic logging
+    Serial.print("📡 Publishing to "); Serial.print(sensorsTopic);
+    Serial.print(": "); Serial.print(payload);
+    
     bool ok = client.publish(sensorsTopic, payload, true);
-    Serial.print("PUB sensors: "); Serial.print(payload);
-    Serial.println(ok ? " [OK]" : " [FAIL]");
+    Serial.println(ok ? " ✅ [SUCCESS]" : " ❌ [FAILED]");
+    
+    if (!ok) {
+      Serial.print("⚠️ MQTT publish failed! Client state: ");
+      Serial.println(client.state());
+    }
   }
 }

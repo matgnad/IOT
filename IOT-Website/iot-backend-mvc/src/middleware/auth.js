@@ -8,9 +8,18 @@ export function verifyToken(req, res, next) {
     });
   }
 
-  const token = authHeader.split(" ")[1]; // Bearer xxx
+  // Defensive: handle malformed Authorization header
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2 || parts[0] !== "Bearer") {
+    return res.status(401).json({
+      success: false,
+      message: "Malformed Authorization header. Expected format: Bearer <token>"
+    });
+  }
 
-  if (token !== process.env.API_TOKEN) {
+  const token = parts[1];
+
+  if (!token || token !== process.env.API_TOKEN) {
     return res.status(403).json({
       success: false,
       message: "Invalid token"
