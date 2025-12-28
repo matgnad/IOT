@@ -17,9 +17,23 @@
         <div class="page active">
             <h1 class="page-title" style="margin-bottom: 2rem;">IoT Sensor Dashboard</h1>
 
+            <!-- Alert Controls -->
+            <div style="margin-bottom: 1rem; text-align: right;">
+                <button id="muteBtn" style="padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    🔊 Sound: ON
+                </button>
+            </div>
+
+            <!-- Alert Toast Notification -->
+            <div id="alertToast" style="display: none; position: fixed; top: 20px; right: 20px; background: #ff4444; color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 10000; max-width: 400px;">
+                <div style="font-weight: bold; font-size: 18px; margin-bottom: 10px;" id="alertToastTitle">🚨 Alert</div>
+                <div id="alertToastMessage"></div>
+                <button onclick="document.getElementById('alertToast').style.display='none'" style="margin-top: 10px; padding: 5px 10px; background: rgba(255,255,255,0.3); border: none; color: white; border-radius: 4px; cursor: pointer;">Dismiss</button>
+            </div>
+
             <!-- Sensor Cards -->
             <div class="dashboard-grid">
-                <div class="card sensor-card">
+                <div class="card sensor-card" id="tempCard">
                     <div class="sensor-info">
                         <h3>Temperature</h3>
                         <div class="sensor-value" id="tempValue">-- °C</div>
@@ -27,7 +41,7 @@
                     <div class="sensor-icon">🌡️</div>
                 </div>
 
-                <div class="card sensor-card">
+                <div class="card sensor-card" id="humidCard">
                     <div class="sensor-info">
                         <h3>Humidity</h3>
                         <div class="sensor-value" id="humidValue">-- %</div>
@@ -67,6 +81,43 @@
                 values: []
             }
         };
+        
+        // Alert system state
+        let soundEnabled = true;
+        let audioContext = null;
+        
+        // Initialize Web Audio API for beep sound
+        function initAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        }
+        
+        // Generate and play beep sound
+        function playAlertBeep() {
+            if (!soundEnabled) return;
+            
+            try {
+                const ctx = initAudioContext();
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(ctx.destination);
+                
+                oscillator.frequency.value = 800; // 800 Hz beep
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                
+                oscillator.start(ctx.currentTime);
+                oscillator.stop(ctx.currentTime + 0.3);
+            } catch (err) {
+                console.warn('[ALERT] Sound play failed:', err);
+            }
+        }
         
         // Socket.IO connection
         const socket = io();
@@ -329,6 +380,61 @@
             addPoint(timeLabel, data.temperature, data.humidity, true);
             
             console.log('[Socket.IO] Received update:', data);
+        });
+
+        // ========= Alert System =========
+        socket.on('alert', (alertData) => {
+            console.log('[ALERT] Received alert:', alertData);
+            
+            const { type, value, threshold, level, message } = alertData;
+            
+            // Play alert sound (if enabled)
+            playAlertBeep();
+            
+            // Show visual alert toast
+            const toast = document.getElementById('alertToast');
+            const toastTitle = document.getElementById('alertToastTitle');
+            const toastMessage = document.getElementById('alertToastMessage');
+            
+            toastTitle.textContent = level === 'critical' ? '🔥 CRITICAL ALERT' : '⚠️ WARNING';
+            toastMessage.innerHTML = `
+                <div><strong>${type === 'temperature' ? 'Temperature' : 'Humidity'}:</strong> ${value}${type === 'temperature' ? '°C' : '%'}</div>
+                <div><strong>Threshold:</strong> ${threshold}${type === 'temperature' ? '°C' : '%'}</div>
+                <div style="margin-top: 8px;">${message}</div>
+            `;
+            
+            // Set toast color based on level
+            toast.style.background = level === 'critical' ? '#ff4444' : '#ffaa00';
+            toast.style.display = 'block';
+            
+            // Auto-hide after 10 seconds
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 10000);
+            
+            // Highlight affected sensor card
+            const cardId = type === 'temperature' ? 'tempCard' : 'humidCard';
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.style.border = `3px solid ${level === 'critical' ? '#ff4444' : '#ffaa00'}`;
+                card.style.boxShadow = `0 0 20px ${level === 'critical' ? 'rgba(255, 68, 68, 0.5)' : 'rgba(255, 170, 0, 0.5)'}`;
+                
+                // Remove highlight after 5 seconds
+                setTimeout(() => {
+                    card.style.border = '';
+                    card.style.boxShadow = '';
+                }, 5000);
+            }
+        });
+
+        // ========= Mute Button =========
+        const muteBtn = document.getElementById('muteBtn');
+        muteBtn.addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            muteBtn.textContent = soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+            muteBtn.style.background = soundEnabled ? '#4CAF50' : '#666';
+            
+            // Sound is controlled by playAlertBeep function
         });
 
         // Initialize on page load

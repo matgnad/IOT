@@ -1,6 +1,7 @@
 import mqtt from 'mqtt';
 import SensorData from '../models/SensorData.js';
 import dotenv from 'dotenv';
+import { checkAndTriggerAlerts } from './alertService.js';
 
 dotenv.config();
 
@@ -69,28 +70,40 @@ client.on('message', async (topic, message) => {
       return;
     }
 
-    // Insert into database
+    // Insert into database (non-blocking)
+    let sensorRecord = null;
     try {
-      const sensorRecord = await SensorData.create({
+      sensorRecord = await SensorData.create({
         temperature,
         humidity
       });
 
       console.log(`[DB] ✅ Saved: ID=${sensorRecord.id} T=${temperature}°C H=${humidity}%`);
-
-      // Emit Socket.IO event for real-time updates
-      if (io) {
-        io.emit('sensor:update', {
-          temperature,
-          humidity,
-          measured_at: sensorRecord.measured_at
-        });
-        console.log(`[Socket.IO] ✅ Emitted sensor:update`);
-      }
     } catch (dbErr) {
       // ✅ FIX: Separate database errors
       console.error('[DB] ❌ Database error:', dbErr.message);
       console.error('[DB] Stack:', dbErr.stack);
+      // Continue processing even if DB fails (for alerts)
+    }
+
+    // 🚨 ALERT SYSTEM: Check thresholds and trigger alerts (non-blocking)
+    // This runs asynchronously and won't block MQTT processing
+    checkAndTriggerAlerts(
+      { temperature, humidity },
+      io
+    ).catch((alertErr) => {
+      // Do NOT crash backend if alert system fails
+      console.error('[ALERT] ❌ Alert processing error:', alertErr.message);
+    });
+
+    // Emit Socket.IO event for real-time updates (always emit, even if DB failed)
+    if (io) {
+      io.emit('sensor:update', {
+        temperature,
+        humidity,
+        measured_at: sensorRecord?.measured_at || new Date().toISOString(),
+      });
+      console.log(`[Socket.IO] ✅ Emitted sensor:update`);
     }
 
   } catch (jsonErr) {

@@ -29,6 +29,10 @@ BH1750 lightMeter;
 #define LED2 12   // GPIO12 (D6)
 #define LED3 13   // GPIO13 (D7)
 
+// ✅ NEW: Temperature warning LED (optional - can use built-in LED)
+#define TEMP_WARNING_LED LED_BUILTIN  // GPIO2 (built-in LED on most ESP8266)
+#define WARNING_TEMP 30.0  // Temperature threshold in °C
+
 // ==== MQTT Topics ====
 // Sensors (ESP -> Server)
 const char* sensorsTopic = "esp8266/sensors";          // JSON sensor data
@@ -151,6 +155,10 @@ void setup() {
   digitalWrite(LED2, LOW);
   digitalWrite(LED3, LOW);
 
+  // ✅ NEW: Setup warning LED
+  pinMode(TEMP_WARNING_LED, OUTPUT);
+  digitalWrite(TEMP_WARNING_LED, HIGH); // OFF for built-in LED (inverted logic)
+
   setup_wifi();
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
@@ -191,6 +199,14 @@ void loop() {
       doc["light"] = lux;
     } else {
       Serial.println("⚠️ BH1750 light sensor error (ignored)");
+    }
+
+    // ✅ NEW: Temperature warning LED control
+    if (t > WARNING_TEMP) {
+      digitalWrite(TEMP_WARNING_LED, LOW);  // ON (inverted logic for built-in LED)
+      Serial.print("🔥 HIGH TEMP WARNING: "); Serial.print(t); Serial.println("°C");
+    } else {
+      digitalWrite(TEMP_WARNING_LED, HIGH); // OFF
     }
 
     char payload[128];
